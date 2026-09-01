@@ -1,18 +1,6 @@
-import { useEffect } from "react";
-import { initApp } from "./mutad";
-import "./mutad.css";
-
+// Not used — the application now ships as a single self-contained
+// index.html (see the project root). This stub exists only so the
+// original Vite scaffold entry remains valid if referenced.
 export default function App() {
-  useEffect(() => {
-    initApp();
-  }, []);
-
-  return (
-    <>
-      <div id="app" className="app"></div>
-      <div id="toastWrap" className="toast-wrap"></div>
-      <div id="modalRoot"></div>
-      <div id="drawerRoot"></div>
-    </>
-  );
+  return null;
 }
