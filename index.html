@@ -1444,6 +1444,7 @@ function renderShell(){
             <input id="globalSearchInput" placeholder="Search customers, jobs, invoices..." autocomplete="off">
             <div class="global-search-results" id="globalSearchResults"></div>
           </div>
+          <button class="btn btn-sm" id="downloadAppBtn" title="Save this app as one standalone HTML file" style="gap:6px;">${ICONS.download} <span style="font-size:12px;">Download HTML</span></button>
           <div class="topbar-actions" id="topbarActions"></div>
         </div>
       </div>
@@ -1472,6 +1473,34 @@ function renderShell(){
   document.getElementById('menuToggle').addEventListener('click', ()=>{
     document.getElementById('sidebar').classList.toggle('open');
   });
+  const dlBtn = document.getElementById('downloadAppBtn');
+  if (dlBtn) dlBtn.addEventListener('click', downloadAppFile);
+}
+
+// Saves the entire app — styles, engine and markup — as one standalone
+// HTML file the user can keep, email, or open offline from anywhere.
+function downloadAppFile(){
+  const saveBlob = (text) => {
+    const blob = new Blob([text], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'MUTAD-accounting.html';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1500);
+    toast('Downloading MUTAD-accounting.html — a complete, self-contained copy of this app', 'ok');
+  };
+  try {
+    // Prefer the exact source file this page was served from.
+    fetch(window.location.href, { cache: 'no-cache' })
+      .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.text(); })
+      .then(saveBlob)
+      .catch(() => saveBlob('<!DOCTYPE html>\n' + document.documentElement.outerHTML));
+  } catch(e) {
+    saveBlob('<!DOCTYPE html>\n' + document.documentElement.outerHTML);
+  }
 }
 
 function switchView(id){
