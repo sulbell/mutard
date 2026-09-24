@@ -470,8 +470,8 @@ const MODEL_FIELDS = {
     notShown: ['hiringCost', 'rentalCharges', 'supplier', 'partnerName', 'partnerCost', 'commissionAmount']
   },
   'TH-TRIP': {
-    always: ['fuelCost', 'materialCost', 'loadingCost', 'revenueCost', 'coExpenses', 'driverWages', 'supplier'],
-    hidden: [],
+    always: ['supplier'],
+    hidden: ['fuelCost', 'materialCost', 'loadingCost', 'revenueCost', 'coExpenses', 'driverWages'],
     notShown: ['assetProv', 'truckMaint', 'hiringCost', 'rentalCharges', 'partnerName', 'partnerCost', 'commissionAmount']
   },
   'TR-TRIP': {
@@ -2079,6 +2079,11 @@ function openInvoiceForm(id, opts){
         <datalist id="collaboratorList">${allSupplierNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
         <div class="field-hint" id="supplierBalanceHint">${o.supplier ? 'Balance: ' + fmtMoney(getSupplierBalance(getSupplierByName(o.supplier)?.id)) : 'New collaborator? They\u2019ll be added to Collaborator Master automatically.'}</div>
       </div>
+      <div class="field" id="hiringCostFieldWrap" style="${o.invoiceType === 'TH-TRIP' ? '' : 'display:none;'}">
+        <label>Hiring Cost (₦)</label>
+        <input type="number" id="f_hiringCost" value="${o.hiringCost||0}" min="0" step="any">
+        <div class="field-note">Cost of hiring the truck from the collaborator</div>
+      </div>
     </div>
   `;
 
@@ -2277,6 +2282,8 @@ function openInvoiceForm(id, opts){
       document.getElementById('revenueCommission').style.display = isContract ? '' : 'none';
       document.getElementById('revenuePartner').style.display = isPartner ? '' : 'none';
       document.getElementById('supplierSection').style.display = isHire ? '' : 'none';
+      const hiringCostWrap = document.getElementById('hiringCostFieldWrap');
+      if (hiringCostWrap) hiringCostWrap.style.display = (model === 'TH-TRIP') ? '' : 'none';
       document.getElementById('partnerSection').style.display = isPartner ? '' : 'none';
       document.getElementById('fuelFields').style.display = isFuelModel ? '' : 'none';
 
@@ -2528,6 +2535,11 @@ function openInvoiceForm(id, opts){
         costs += parseFloat(document.getElementById('f_partnerCost')?.value) || 0;
       }
 
+      // TH-TRIP: hiringCost is in the supplier section, not the cost grid
+      if (model === 'TH-TRIP') {
+        costs += parseFloat(document.getElementById('f_hiringCost')?.value) || 0;
+      }
+
       if (isFuelModel) {
         const ltr = parseFloat(document.getElementById('f_ltrUsed')?.value) || 0;
         const price = parseFloat(document.getElementById('f_pricePerLitre')?.value) || 0;
@@ -2670,6 +2682,8 @@ function openInvoiceForm(id, opts){
 
         if (supplier) upsertSupplierName(supplier);
 
+        const hiringCost = parseFloat(document.getElementById('f_hiringCost')?.value) || 0;
+
         const createdIds = [];
         trips.forEach((t) => {
           upsertCustomerName(t.customer);
@@ -2688,7 +2702,7 @@ function openInvoiceForm(id, opts){
             supplier,
             fuelCost: t.fuelCost, materialCost: t.materialCost, loadingCost: t.loadingCost,
             revenueCost: t.revenueCost, coExpenses: t.coExpenses, driverWages: t.driverWages,
-            assetProv: 0, truckMaint: 0, hiringCost: 0,
+            assetProv: 0, truckMaint: 0, hiringCost: hiringCost,
             partnerCost: 0, partnerName: '',
           };
           DB.operations.push(newOp);
