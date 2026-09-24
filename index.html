@@ -472,7 +472,7 @@ const MODEL_FIELDS = {
   'TH-TRIP': {
     always: ['supplier'],
     hidden: ['fuelCost', 'materialCost', 'loadingCost', 'revenueCost', 'coExpenses', 'driverWages'],
-    notShown: ['assetProv', 'truckMaint', 'hiringCost', 'rentalCharges', 'partnerName', 'partnerCost', 'commissionAmount']
+    notShown: ['assetProv', 'truckMaint', 'rentalCharges', 'partnerName', 'partnerCost', 'commissionAmount']
   },
   'TR-TRIP': {
     always: ['fuelCost', 'coExpenses', 'driverWages', 'assetProv', 'truckMaint', 'rentalCharges'],
@@ -743,6 +743,10 @@ function calculateCosts(op) {
   total += extraHireCosts(op);
   if (model === 'PARTNER') {
     total += Number(op.partnerCost) || 0;
+  }
+  // TH-TRIP: hiringCost is stored separately but should be included in total cost
+  if (model === 'TH-TRIP') {
+    total += Number(op.hiringCost) || 0;
   }
   return total;
 }
@@ -2010,22 +2014,22 @@ function openInvoiceForm(id, opts){
           <datalist id="invCustomerListDatalist">${allCustomerNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
           <div class="field-hint" id="opWalletHint">${walletHintFor(o.customer)}</div>
         </div>
+        <div class="field" id="locationFieldWrap"><label>Location</label>
+          <input id="f_location" list="locationList" value="${esc(o.location||'')}">
+          <datalist id="locationList">${(DB.locations || []).map(l=>`<option value="${esc(l)}">`).join('')}</datalist>
+        </div>
       </div>
       <div class="field-row">
         <div class="field" id="vehicleFieldWrap"><label>Vehicle</label>
           <select id="f_vehicleId">${opt(DB.vehicles || [], o.vehicleId)}</select>
         </div>
-        <div class="field" id="truckNoFieldWrap" style="display:none;"><label>Truck No <span class="field-note" style="display:inline;">(plate/registration of the hired truck)</span></label>
-          <input id="f_truckNo" value="${esc(o.truckNo||'')}" placeholder="e.g. KN-234-XYZ">
-        </div>
-      </div>
-      <div class="field-row" id="locStatusRow">
-        <div class="field" id="locationFieldWrap"><label>Location</label>
-          <input id="f_location" list="locationList" value="${esc(o.location||'')}">
-          <datalist id="locationList">${(DB.locations || []).map(l=>`<option value="${esc(l)}">`).join('')}</datalist>
-        </div>
         <div class="field" id="statusFieldWrap"><label>Status</label>
           <select id="f_status">${opt(['PENDING','EXECUTED','CANCELLED'], o.orderStatus)}</select>
+        </div>
+      </div>
+      <div class="field-row" id="truckNoRow" style="display:none;">
+        <div class="field" id="truckNoFieldWrap"><label>Truck No <span class="field-note" style="display:inline;">(plate/registration of the hired truck)</span></label>
+          <input id="f_truckNo" value="${esc(o.truckNo||'')}" placeholder="e.g. KN-234-XYZ">
         </div>
       </div>
       <div class="field-row" id="dueJobRow">
@@ -2288,25 +2292,28 @@ function openInvoiceForm(id, opts){
       document.getElementById('fuelFields').style.display = isFuelModel ? '' : 'none';
 
       const custWrap = document.getElementById('customerFieldWrap');
+      const locationWrap = document.getElementById('locationFieldWrap');
+      const statusWrap = document.getElementById('statusFieldWrap');
       const truckNoFieldWrap = document.getElementById('truckNoFieldWrap');
-      const locStatusRow = document.getElementById('locStatusRow');
       const dueDateWrap = document.getElementById('dueDateFieldWrap');
       const jobIdWrap = document.getElementById('jobIdFieldWrap');
       const costsHeading = document.getElementById('costsSectionHeading');
       const costsGridEl = document.getElementById('costFieldsGrid');
       const costsToggleWrap = document.getElementById('costToggleWrap');
 
+      const truckNoRow = document.getElementById('truckNoRow');
       if (custWrap) custWrap.style.display = isTHTripBatch ? 'none' : '';
+      if (locationWrap) locationWrap.style.display = isTHTripBatch ? 'none' : '';
+      if (statusWrap) statusWrap.style.display = isTHTripBatch ? 'none' : '';
+      if (truckNoRow) truckNoRow.style.display = ['TH-TRIP','TH-DAY'].includes(model) ? '' : 'none';
       if (truckNoFieldWrap) truckNoFieldWrap.style.display = ['TH-TRIP','TH-DAY'].includes(model) ? '' : 'none';
       if (dueDateWrap) dueDateWrap.style.display = (model === 'TH-TRIP') ? 'none' : '';
       if (isTHTripBatch) {
-        if (locStatusRow) locStatusRow.style.display = 'none';
         if (jobIdWrap) jobIdWrap.style.display = 'none';
         if (costsHeading) costsHeading.style.display = 'none';
         if (costsGridEl) costsGridEl.style.display = 'none';
         if (costsToggleWrap) costsToggleWrap.style.display = 'none';
       } else {
-        if (locStatusRow) locStatusRow.style.display = '';
         if (jobIdWrap) jobIdWrap.style.display = '';
         if (costsHeading) costsHeading.style.display = '';
         if (costsGridEl) costsGridEl.style.display = '';
@@ -2570,7 +2577,7 @@ function openInvoiceForm(id, opts){
       }
     }
 
-    const inputIds = ['f_qty', 'f_unitPrice', 'f_transportFee', 'f_rentalCharges', 'f_commissionAmount', 'f_jobRevenue', 'f_partnerCost', 'f_ltrUsed', 'f_pricePerLitre', 'f_dailyHireCost']
+    const inputIds = ['f_qty', 'f_unitPrice', 'f_transportFee', 'f_rentalCharges', 'f_commissionAmount', 'f_jobRevenue', 'f_partnerCost', 'f_ltrUsed', 'f_pricePerLitre', 'f_dailyHireCost', 'f_thTripHiringCost']
       .concat(COST_TIER_FIELDS.map(f => 'f_' + f));
     inputIds.forEach(id => {
       const el = document.getElementById(id);
@@ -2814,7 +2821,7 @@ function openInvoiceForm(id, opts){
         driverWages: parseFloat(document.getElementById('f_driverWages')?.value) || 0,
         assetProv: parseFloat(document.getElementById('f_assetProv')?.value) || 0,
         truckMaint: parseFloat(document.getElementById('f_truckMaint')?.value) || 0,
-        hiringCost: parseFloat(document.getElementById('f_hiringCost')?.value) || 0,
+        hiringCost: model === 'TH-TRIP' ? (parseFloat(document.getElementById('f_thTripHiringCost')?.value) || 0) : (parseFloat(document.getElementById('f_hiringCost')?.value) || 0),
         partnerCost: parseFloat(document.getElementById('f_partnerCost')?.value) || 0,
         supplier, partnerName: document.getElementById('f_partner')?.value || '',
         dailyHireCost: o.dailyHireCost || 0,
