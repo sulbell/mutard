@@ -2010,12 +2010,12 @@ function openInvoiceForm(id, opts){
           <datalist id="invCustomerListDatalist">${allCustomerNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
           <div class="field-hint" id="opWalletHint">${walletHintFor(o.customer)}</div>
         </div>
+      </div>
+      <div class="field-row">
         <div class="field" id="vehicleFieldWrap"><label>Vehicle</label>
           <select id="f_vehicleId">${opt(DB.vehicles || [], o.vehicleId)}</select>
         </div>
-      </div>
-      <div class="field-row" id="truckNoRow" style="display:none;">
-        <div class="field"><label>Truck No <span class="field-note" style="display:inline;">(plate/registration of the hired truck)</span></label>
+        <div class="field" id="truckNoFieldWrap" style="display:none;"><label>Truck No <span class="field-note" style="display:inline;">(plate/registration of the hired truck)</span></label>
           <input id="f_truckNo" value="${esc(o.truckNo||'')}" placeholder="e.g. KN-234-XYZ">
         </div>
       </div>
@@ -2081,7 +2081,7 @@ function openInvoiceForm(id, opts){
       </div>
       <div class="field" id="hiringCostFieldWrap" style="${o.invoiceType === 'TH-TRIP' ? '' : 'display:none;'}">
         <label>Hiring Cost (₦)</label>
-        <input type="number" id="f_hiringCost" value="${o.hiringCost||0}" min="0" step="any">
+        <input type="number" id="f_thTripHiringCost" value="${o.hiringCost||0}" min="0" step="any">
         <div class="field-note">Cost of hiring the truck from the collaborator</div>
       </div>
     </div>
@@ -2288,7 +2288,7 @@ function openInvoiceForm(id, opts){
       document.getElementById('fuelFields').style.display = isFuelModel ? '' : 'none';
 
       const custWrap = document.getElementById('customerFieldWrap');
-      const truckNoRow = document.getElementById('truckNoRow');
+      const truckNoFieldWrap = document.getElementById('truckNoFieldWrap');
       const locStatusRow = document.getElementById('locStatusRow');
       const dueDateWrap = document.getElementById('dueDateFieldWrap');
       const jobIdWrap = document.getElementById('jobIdFieldWrap');
@@ -2297,7 +2297,7 @@ function openInvoiceForm(id, opts){
       const costsToggleWrap = document.getElementById('costToggleWrap');
 
       if (custWrap) custWrap.style.display = isTHTripBatch ? 'none' : '';
-      if (truckNoRow) truckNoRow.style.display = ['TH-TRIP','TH-DAY'].includes(model) ? '' : 'none';
+      if (truckNoFieldWrap) truckNoFieldWrap.style.display = ['TH-TRIP','TH-DAY'].includes(model) ? '' : 'none';
       if (dueDateWrap) dueDateWrap.style.display = (model === 'TH-TRIP') ? 'none' : '';
       if (isTHTripBatch) {
         if (locStatusRow) locStatusRow.style.display = 'none';
@@ -2537,7 +2537,7 @@ function openInvoiceForm(id, opts){
 
       // TH-TRIP: hiringCost is in the supplier section, not the cost grid
       if (model === 'TH-TRIP') {
-        costs += parseFloat(document.getElementById('f_hiringCost')?.value) || 0;
+        costs += parseFloat(document.getElementById('f_thTripHiringCost')?.value) || 0;
       }
 
       if (isFuelModel) {
@@ -2682,7 +2682,7 @@ function openInvoiceForm(id, opts){
 
         if (supplier) upsertSupplierName(supplier);
 
-        const hiringCost = parseFloat(document.getElementById('f_hiringCost')?.value) || 0;
+        const hiringCost = parseFloat(document.getElementById('f_thTripHiringCost')?.value) || 0;
 
         const createdIds = [];
         trips.forEach((t) => {
@@ -2709,6 +2709,12 @@ function openInvoiceForm(id, opts){
           createdIds.push(opId);
           syncFuelForOperation(newOp);
         });
+
+        // Update supplier balance for the hiring cost
+        if (supplier && hiringCost > 0) {
+          const s = getSupplierByName(supplier);
+          if (s) updateSupplierBalance(s.id, hiringCost * trips.length);
+        }
 
         saveDB();
         closeModal();
